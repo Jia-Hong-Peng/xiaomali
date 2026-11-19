@@ -4,7 +4,7 @@ import { loadState, saveState } from './storage.js';
 import { buildCabinet } from './cabinet.js';
 import { buildSchedule, runSchedule } from './anim.js';
 import {
-  SYMBOLS, SYMBOL_BY_ID, LAMPS, COIN_VALUE, SPIN, MAX_BET_PER_SYMBOL, DOUBLE_UP, START_POCKET,
+  SYMBOLS, SYMBOL_BY_ID, LAMPS, COIN_VALUE, SPIN, MAX_BET_PER_SYMBOL, BET_LAYOUT,
 } from './config.js';
 import { SVGNS } from './art.js';
 
@@ -92,11 +92,12 @@ export class Game {
       this._press(btn);
       this.active.set(e.pointerId, btn);
       try { svg.setPointerCapture(e.pointerId); } catch { /* noop */ }
-      this._act(btn.dataset.act, btn.dataset.arg);
+      const ok = this._act(btn.dataset.act, btn.dataset.arg);
+      if (ok !== false && ['bet', 'toCredit', 'toWin'].includes(btn.dataset.act)) this._startRepeat(btn);
     });
     const up = (e) => {
       const btn = this.active.get(e.pointerId);
-      if (btn) { this.active.delete(e.pointerId); this._release(btn); }
+      if (btn) { this.active.delete(e.pointerId); this._release(btn); this._stopRepeat(btn); }
       this.audio.unlock();
     };
     svg.addEventListener('pointerup', up);
@@ -111,7 +112,7 @@ export class Game {
       const el = this._keyBtn; if (el && (e.key === ' ' || e.key === 'Enter' || this._keyMap(e.key))) { this._release(el); this._keyBtn = null; }
     });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) { this.audio.suspend(); return; }
+      if (document.hidden) { this.audio.suspend(); this.active.forEach((b) => this._stopRepeat(b)); return; }
       this.audio.resume();
       this._checkDaily();
       if (this.ui.spinner && !this.ui.spinner.done) this.ui.spinner.finishNow();
@@ -121,7 +122,9 @@ export class Game {
   _keyMap(key) {
     const k = key.toLowerCase();
     const idx = '12345678'.indexOf(k);
-    if (idx >= 0 && k.length === 1) return { act: 'bet', arg: SYMBOLS[idx].id, id: `btn-bet-${SYMBOLS[idx].id}` };
+    if (idx >= 0 && k.length === 1) return { act: 'bet', arg: BET_LAYOUT[idx], id: `btn-bet-${BET_LAYOUT[idx]}` };
+    if (k === 'q') return { act: 'toCredit', id: 'btn-tocredit' };
+    if (k === 'w') return { act: 'toWin', id: 'btn-towin' };
     if (k === 'c') return { act: 'coin', id: 'btn-coin' };
     if (k === ' ' || k === 'enter') return { act: 'start', id: 'btn-start' };
     if (k === 'arrowleft') return { act: 'small', id: 'btn-small' };
@@ -162,19 +165,21 @@ export class Game {
     switch (act) {
       case 'coin': return this._coin();
       case 'bet': {
-        if (this.ui.lock) return a.reject();
+        if (this.ui.lock) { a.reject(); return false; }
         const r = m.addBet(arg);
         this._log('bet', { arg, r });
         if (!r.ok) {
           a.reject();
           if (r.reason === 'insufficient-credit') this._flashMsg('分數不足', m.state.pocket >= COIN_VALUE ? '請先投幣' : '口袋沒錢了', 1600);
           else if (r.reason === 'max-bet') this._flashMsg('已達上限', `每門最多押 ${MAX_BET_PER_SYMBOL} 分`, 1600);
-          return undefined;
+          return false;
         }
         a.betClick();
         this._persist(); this.render();
-        return undefined;
+        return true;
       }
+      case 'toCredit':
+      case 'toWin': return this._transfer(act, this._holdAmount());
       case 'start': return this._start();
       case 'small':
       case 'large': return this._guess(act);
@@ -190,6 +195,40 @@ export class Game {
       case 'scoop': return this._scoop();
       default: return undefined;
     }
+  }
+
+  /* 按住連發：押分鍵與轉分鍵 */
+  _startRepeat(el) {
+    this._stopRepeat(el);
+    el._holdN = 0;
+    const run = () => {
+      el._holdN += 1;
+      this._holdTick = el._holdN;
+      const ok = this._act(el.dataset.act, el.dataset.arg);
+      this._holdTick = 0;
+      if (ok === false || !el.classList.contains('down')) { el._rep = null; return; }
+      el._rep = setTimeout(run, el._holdN < 6 ? 110 : el._holdN < 14 ? 70 : 40);
+    };
+    el._rep = setTimeout(run, 420);
+  }
+  _stopRepeat(el) { if (el._rep) clearTimeout(el._rep); el._rep = null; }
+  /** 轉分每次的分數：單按 1 分，按住越久越多。 */
+  _holdAmount() {
+    const n = this._holdTick || 0;
+    return n < 8 ? 1 : n < 20 ? 5 : 25;
+  }
+
+  _transfer(dir, amount) {
+    if (this.ui.lock) { this.audio.reject(); return false; }
+    const r = this.machine.transfer(dir, amount);
+    this._log('transfer', { dir, r });
+    if (!r.ok) { this.audio.reject(); return false; }
+    this.audio.tick(0.9);
+    this.ui.displayWin = null;
+    this._persist();
+    this._stopFlash();
+    this.render();
+    return true;
   }
 
   _coin() {
@@ -338,12 +377,15 @@ export class Game {
     this._flashMsg('', '', 0);
     this.cab.msg2.textContent = side === 'small' ? '猜小 1–6' : '猜大 8–13';
     for (let i = 0; i < 9; i++) {
-      this.cab.msg1.textContent = String(1 + Math.floor(Math.random() * 13)).padStart(2, '　');
+      this.cab.duDigits.set(1 + Math.floor(Math.random() * 13));
+      this.cab.msg1.textContent = '比大小';
       this.audio.tick(0.85 - i * 0.07);
       await sleep(70 + i * 22);
     }
     this.audio.stop();
+    this.cab.duDigits.set(r.n);
     this.cab.msg1.textContent = `${r.n}`;
+    this._later(() => this.cab.duDigits.set(''), 3200);
     await sleep(420);
     this.ui.lock = false;
     this.ui.displayWin = null;
@@ -429,7 +471,6 @@ export class Game {
     const c = this.cab;
     const bet = totalBet(s.bets);
     c.led.credit.set(this.ui.displayCredit ?? s.credit);
-    c.led.bet.set(bet > 0 ? bet : '');
     if (this.ui.displayWin == null) c.led.win.set(s.win > 0 ? s.win : '');
     c.pocketLed.set(s.pocket);
     for (const sym of SYMBOLS) c.betDigits[sym.id].set(s.bets[sym.id] > 0 ? s.bets[sym.id] : '');
@@ -460,6 +501,8 @@ export class Game {
     setBtn('btn-start', { off: busy || (s.phase === 'idle' && bet === 0), ready: !busy && (s.phase === 'win' || bet > 0) });
     setBtn('btn-small', { off: busy || s.phase !== 'win', ready: !busy && s.phase === 'win' });
     setBtn('btn-large', { off: busy || s.phase !== 'win', ready: !busy && s.phase === 'win' });
+    setBtn('btn-tocredit', { off: busy || s.win <= 0, ready: false });
+    setBtn('btn-towin', { off: busy || s.credit <= 0, ready: false });
     setBtn('btn-cash', { off: busy || (s.credit + bet + s.win) === 0, lit: !busy && s.credit + s.win > 0 });
     setBtn('btn-coin', { off: busy || s.pocket < COIN_VALUE });
     const snd = c.buttons['btn-sound'];
@@ -506,7 +549,7 @@ export class Game {
     const g = document.createElementNS(SVGNS, 'g');
     g.innerHTML = `<ellipse rx="13" ry="13" fill="url(#gCoin)" stroke="#6f7473" stroke-width="1.4"/><ellipse rx="9.5" ry="9.5" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1"/><text y="4" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="11" fill="#5a5f5e">10</text>`;
     layer.appendChild(g);
-    const x0 = 430, y0 = 1062, x1 = 529, y1 = 972;
+    const x0 = 430, y0 = 1066, x1 = 482, y1 = 58;
     const t0 = performance.now(), dur = 250;
     const step = (now) => {
       const t = clamp01((now - t0) / dur);

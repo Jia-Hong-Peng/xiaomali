@@ -28,14 +28,15 @@ const rollFor = (lamp) => LAMPS.slice(0, lamp).reduce((a, l) => a + l.weight, 0)
 /** 贈燈抽樣：在 pool 內選中 pick 所需的亂數。 */
 const bonusRoll = (pool, pick) => { let r = 0; for (const i of pool) { if (i === pick) return r; r += LAMPS[i].weight; } throw new Error('pick not in pool'); };
 const bets = (o) => ({ ...emptyBets(), ...o });
-const APPLE = 1, ORANGE_X2 = 11, BAR_X100 = 23, OM0 = 0;
+const APPLE = 5, ORANGE_X10 = 0, ORANGE_X2 = 12, BAR_X100 = 3, OM0 = 9;
 
-test('盤面：24 燈、四角為 ONCE MORE、其餘 20 格含全部八門與文件載明的倍數', () => {
+test('盤面：24 燈、再一次在左右兩側正中央、其餘含全部八門與文件載明的倍數', () => {
   assert.equal(LAMPS.length, 24);
-  assert.deepEqual(OM_LAMPS, [0, 6, 12, 18]);
-  assert.equal(PRIZE_LAMPS.length, 20);
+  assert.deepEqual(OM_LAMPS, [9, 21]);
+  assert.equal(PRIZE_LAMPS.length, 22);
+  for (const c of [0, 6, 12, 18]) assert.notEqual(LAMPS[c].symbol, ONCE_MORE); // 四角是水果
   const per = Object.fromEntries(SYMBOLS.map((s) => [s.id, LAMPS.filter((l) => l.symbol === s.id).map((l) => l.mult).sort((a, b) => a - b)]));
-  assert.deepEqual(per.apple, [5, 5, 5, 5, 5]);
+  assert.deepEqual(per.apple, [5, 5, 5, 5, 5, 5, 5]);
   assert.deepEqual(per.orange, [2, 10]);
   assert.deepEqual(per.papaya, [2, 15]);
   assert.deepEqual(per.bell, [2, 20]);
@@ -43,8 +44,11 @@ test('盤面：24 燈、四角為 ONCE MORE、其餘 20 格含全部八門與文
   assert.deepEqual(per.star, [2, 30]);
   assert.deepEqual(per.seven, [2, 40]);
   assert.deepEqual(per.bar, [25, 50, 100]);
-  // 每個燈位的倍數都在該圖案文件所列倍數之內
   for (const l of LAMPS) if (l.symbol !== ONCE_MORE) assert.ok(SYMBOLS.find((s) => s.id === l.symbol).mults.includes(l.mult));
+  // 照片可見的特徵：上邊正中間相鄰 BAR 50 / BAR 100；下邊兩個 77 相鄰；左側兩個雙星相鄰
+  assert.deepEqual([LAMPS[2], LAMPS[3]].map((l) => [l.symbol, l.mult]), [['bar', 50], ['bar', 100]]);
+  assert.deepEqual([LAMPS[14], LAMPS[15]].map((l) => l.symbol), ['seven', 'seven']);
+  assert.deepEqual([LAMPS[19], LAMPS[20]].map((l) => l.symbol), ['star', 'star']);
   assert.equal(LAMPS.reduce((a, l) => a + l.weight, 0), WEIGHT_TOTAL);
 });
 
@@ -198,7 +202,7 @@ test('8a. 小倍率與大倍率燈位：同一圖案依停燈位置給不同倍�
   const small = fresh(seq(rollFor(ORANGE_X2)));
   small.insertCoin(); for (let i = 0; i < 5; i++) small.addBet('orange');
   assert.equal(small.start().payout, 10);   // 5 × 2
-  const big = fresh(seq(rollFor(2)));       // 橘子 ×10
+  const big = fresh(seq(rollFor(ORANGE_X10)));  // 橘子 ×10
   big.insertCoin(); for (let i = 0; i < 5; i++) big.addBet('orange');
   assert.equal(big.start().payout, 50);     // 5 × 10
   const bar = fresh(seq(rollFor(BAR_X100)));
@@ -300,6 +304,32 @@ test('9b. 猜大小可連續進行；每次猜對都 ×2，任何時候猜錯即
   assert.equal(m.state.credit, 9);
 });
 
+test('轉分：得分 ↔ 投幣分數（評鑑文件的遞增/遞減鍵）', () => {
+  const m = fresh(seq(rollFor(APPLE)));
+  m.insertCoin(); for (let i = 0; i < 4; i++) m.addBet('apple');
+  m.start(); m.settle();                                   // win 20, credit 6
+  assert.deepEqual([m.state.win, m.state.credit, m.state.phase], [20, 6, 'win']);
+  assert.equal(m.transfer('toCredit', 5).moved, 5);
+  assert.deepEqual([m.state.win, m.state.credit], [15, 11]);
+  assert.equal(m.transfer('toWin', 100).moved, 11);          // 最多只能轉出現有分數
+  assert.deepEqual([m.state.win, m.state.credit], [26, 0]);
+  assert.equal(m.transfer('toWin', 1).reason, 'nothing-to-transfer');
+  assert.equal(m.transfer('toCredit', 1000).moved, 26);
+  assert.equal(m.state.phase, 'idle');                       // 得分轉空 → 回到 idle
+  assert.equal(m.transfer('toCredit', 1).reason, 'nothing-to-transfer');
+  assert.equal(m.transfer('toWin', 3).ok, true);              // 用投幣分數開出得分，可以猜大小
+  assert.equal(m.state.phase, 'win');
+  assert.equal(m.transfer('x', 1).reason, 'bad-direction');
+  assert.equal(m.transfer('toWin', 0).reason, 'bad-amount');
+  assert.equal(m.transfer('toWin', 1.5).reason, 'bad-amount');
+});
+
+test('轉分在跑燈中被拒絕', () => {
+  const m = fresh(); m.insertCoin(); m.addBet('apple'); m.start();
+  assert.equal(m.transfer('toWin', 1).reason, 'busy');
+  assert.equal(m.transfer('toCredit', 1).reason, 'busy');
+});
+
 test('10. 退幣：機台分數、未開始押注、得分全數轉回口袋，不能重複', () => {
   const m = fresh();
   m.insertCoin(); m.insertCoin();          // pocket 80, credit 20
@@ -341,7 +371,7 @@ test('得分狀態下投幣/押注會先自動轉分，金額不會遺失或重�
 test('金額守恆：任意操作序列中，口袋+機台+押注+得分 + 莊家收入 - 累計派彩 恆為 100', () => {
   const m = fresh();
   let won = 0; let house = 0;
-  const moves = ['coin', 'bet', 'bet', 'start', 'settle', 'guess', 'collect', 'cash', 'coin', 'coin', 'bet', 'start', 'settle', 'cash'];
+  const moves = ['coin', 'bet', 'bet', 'start', 'settle', 'guess', 'tow', 'toc', 'collect', 'cash', 'coin', 'coin', 'bet', 'start', 'settle', 'cash'];
   for (let round = 0; round < 3000; round++) {
     const mv = moves[round % moves.length];
     if (mv === 'coin') m.insertCoin();
@@ -350,6 +380,8 @@ test('金額守恆：任意操作序列中，口袋+機台+押注+得分 + 莊�
     if (mv === 'settle') { const stake = m.state.pending ? m.state.pending.stake : 0; const r = m.settle(); if (r.ok) { won += r.payout; house += stake; } }
     if (mv === 'guess') { const before = m.state.win; const r = m.guess(round % 2 ? 'small' : 'large'); if (r.ok) won += r.win - before; }
     if (mv === 'collect') m.collect();
+    if (mv === 'tow') m.transfer('toWin', 3);
+    if (mv === 'toc') m.transfer('toCredit', 2);
     if (mv === 'cash') m.cashOut();
     const s = m.state;
     const inMachine = s.credit + s.win + totalBet(s.bets); // 跑燈中的押注仍留在 bets 內，結算時才被機台收走
@@ -415,11 +447,11 @@ test('13. 損毀/竄改的存檔安全還原為預設狀態', () => {
     JSON.stringify({ ...d(), bets: { apple: 99 } }),
     JSON.stringify({ ...d(), lastAllowanceDate: 'yesterday' }),
     // 竄改待結算派彩
-    JSON.stringify({ ...d(), phase: 'spinning', pending: { target: 1, bonus: [], payout: 99999, bets: { ...emptyBets(), apple: 1 } } }),
+    JSON.stringify({ ...d(), phase: 'spinning', pending: { target: 5, bonus: [], payout: 99999, bets: { ...emptyBets(), apple: 1 } } }),
     // 非 ONCE MORE 卻帶贈燈
-    JSON.stringify({ ...d(), phase: 'spinning', pending: { target: 1, bonus: [2], payout: 5, bets: { ...emptyBets(), apple: 1 } } }),
+    JSON.stringify({ ...d(), phase: 'spinning', pending: { target: 5, bonus: [2], payout: 5, bets: { ...emptyBets(), apple: 1 } } }),
     // 贈燈重複
-    JSON.stringify({ ...d(), phase: 'spinning', pending: { target: 0, bonus: [2, 2], payout: 0, bets: emptyBets() } }),
+    JSON.stringify({ ...d(), phase: 'spinning', pending: { target: 9, bonus: [2, 2], payout: 0, bets: emptyBets() } }),
   ];
   for (const text of bad) {
     const st = memStorage(); st._m.set(SAVE_KEY, text);
@@ -438,7 +470,7 @@ test('13b. localStorage 丟例外時不會當機', () => {
 });
 
 test('validateState 接受引擎在各階段產生的所有狀態', () => {
-  const m = fresh(seq(rollFor(OM0), 2, bonusRoll(PRIZE_LAMPS, 2), bonusRoll(PRIZE_LAMPS.filter((i) => i !== 2), 14), bonusRoll(PRIZE_LAMPS.filter((i) => ![2, 14].includes(i)), 7)));
+  const m = fresh(seq(rollFor(OM0), 2, bonusRoll(PRIZE_LAMPS, 0), bonusRoll(PRIZE_LAMPS.filter((i) => i !== 0), APPLE), bonusRoll(PRIZE_LAMPS.filter((i) => ![0, APPLE].includes(i)), 7)));
   m.insertCoin(); m.addBet('orange'); m.addBet('apple');
   assert.ok(validateState(m.snapshot()));
   m.start();

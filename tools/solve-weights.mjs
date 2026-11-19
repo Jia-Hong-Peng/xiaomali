@@ -5,7 +5,7 @@ import { exactRtp } from '../js/engine.js';
 
 const R = Number(process.argv[2] ?? 0.9);
 const share = (sym, mult) => {
-  if (sym === 'apple') return 1 / 5;
+  if (sym === 'apple') return 1 / LAMPS.filter((l) => l.symbol === 'apple').length;
   if (sym === 'bar') return { 25: 0.5, 50: 0.3, 100: 0.2 }[mult];
   return mult === 2 ? 0.25 : 0.75; // 小倍率燈佔 25%、大倍率燈佔 75% 的回收
 };

@@ -131,6 +131,33 @@ export class Machine {
     return { ok: true, amount };
   }
 
+  /**
+   * 得分 ↔ 投幣分數互轉（評鑑文件：遞增鍵把中獎分數轉到投幣分數，遞減鍵把投幣分數轉到中獎分數）。
+   * toCredit：得分 → 投幣分數；toWin：投幣分數 → 得分（可用來猜大小）。每次移動 amount 分。
+   */
+  transfer(direction, amount = 1) {
+    const s = this.state;
+    if (s.phase === 'spinning') return fail('busy');
+    if (!Number.isInteger(amount) || amount < 1) return fail('bad-amount');
+    if (direction === 'toCredit') {
+      if (s.win <= 0) return fail('nothing-to-transfer');
+      const n = Math.min(amount, s.win, MAX_CREDIT - s.credit);
+      if (n <= 0) return fail('credit-full');
+      s.win -= n; s.credit += n;
+      if (s.win === 0) s.phase = 'idle';
+      return { ok: true, moved: n };
+    }
+    if (direction === 'toWin') {
+      if (s.credit <= 0) return fail('nothing-to-transfer');
+      const n = Math.min(amount, s.credit, MAX_CREDIT - s.win);
+      if (n <= 0) return fail('win-full');
+      s.credit -= n; s.win += n;
+      s.phase = 'win';
+      return { ok: true, moved: n };
+    }
+    return fail('bad-direction');
+  }
+
   insertCoin() {
     const s = this.state;
     if (s.phase === 'spinning') return fail('busy');

@@ -72,7 +72,7 @@ async function run() {
   check('15b. 機台完整落在視窗內且保持 600:1180 比例',
     svgBox.left >= -0.5 && svgBox.right <= W().innerWidth + 0.5 && svgBox.top >= -0.5 && svgBox.bottom <= W().innerHeight + 0.5
     && Math.abs(svgBox.width / svgBox.height - 600 / 1180) < 0.01, `${svgBox.width.toFixed(1)}x${svgBox.height.toFixed(1)}`);
-  const btnSizes = ['btn-bet-apple', 'btn-bet-bar', 'btn-start', 'btn-cash', 'btn-small', 'btn-coin'].map((id) => {
+  const btnSizes = ['btn-bet-apple', 'btn-bet-bar', 'btn-start', 'btn-cash', 'btn-small', 'btn-tocredit', 'btn-towin', 'btn-coin'].map((id) => {
     const r = D().querySelector(`#${id} .hit`).getBoundingClientRect();
     return [id, Math.round(r.width), Math.round(r.height)];
   });
@@ -95,17 +95,28 @@ async function run() {
   for (let i = 0; i < 55; i++) { press('btn-bet-seven', { hold: 5 }); await sleep(8); }
   check('5d. 單門押注上限 50 分', S().bets.seven === MAX_BET_PER_SYMBOL && S().credit === 10, JSON.stringify({ seven: S().bets.seven, c: S().credit }));
 
+  press('btn-cash'); await sleep(80);
+  for (let i = 0; i < 3; i++) { press('btn-coin'); await sleep(40); }
+  { // 按住押分鍵會連發（街機手感）
+    const el = D().getElementById('btn-bet-apple'); const P = W().PointerEvent;
+    const init = { bubbles: true, cancelable: true, pointerId: 11, button: 0, pointerType: 'touch', isPrimary: true };
+    el.dispatchEvent(new P('pointerdown', init)); await sleep(1400); el.dispatchEvent(new P('pointerup', init)); await sleep(300);
+    const n = S().bets.apple; await sleep(400);
+    check('5e. 按住押分鍵連發，放開即停', n >= 6 && S().bets.apple === n, `apple=${n}`);
+  }
+  press('btn-cash'); await sleep(80);
+
   /* 4 口袋不足 */
   await load();
   S().pocket = 5; press('btn-coin'); await sleep(80);
   check('4. 口袋不足 NT$10 時投幣被拒絕、金額不變',
     S().pocket === 5 && S().credit === 0 && /口袋沒錢/.test(D().getElementById('msg1').textContent), D().getElementById('msg1').textContent);
 
-  /* 6/7 START 防重入 + 跑燈停在預定燈位（強制抽中橘子×10：燈位 2） */
+  /* 6/7 START 防重入 + 跑燈停在預定燈位（強制抽中橘子×2：燈位 12） */
   await load();
   press('btn-coin'); await sleep(450);
   press('btn-bet-orange'); await sleep(40); press('btn-bet-orange'); await sleep(40);
-  forceRng(rollFor(2));
+  forceRng(rollFor(12));
   const seq = [];
   let lastKey = '';
   const poll = setInterval(() => {
@@ -124,29 +135,33 @@ async function run() {
   clearInterval(poll);
   await sleep(300);
   const lit = [...G().ui.onLamps];
-  check('7. 跑燈結束後燈停在引擎預定的燈位', finished && pendingTarget === 2 && lit.length === 1 && lit[0] === 2, `target=${pendingTarget} lit=${lit} spin≈${Math.round(spinMs)}ms`);
+  check('7. 跑燈結束後燈停在引擎預定的燈位', finished && pendingTarget === 12 && lit.length === 1 && lit[0] === 12, `target=${pendingTarget} lit=${lit} spin≈${Math.round(spinMs)}ms`);
   const singles = seq.filter((k) => k !== '' && !k.includes(',')).map(Number);
   let stepsOk = singles.length > 48;
   for (let i = 1; i < singles.length; i++) if (((singles[i] - singles[i - 1] + NUM_LAMPS) % NUM_LAMPS) !== 1) { stepsOk = false; break; }
   check('7b. 燈逐格順時針前進，至少繞 2 圈', stepsOk, `steps=${singles.length}`);
   check('7c. 跑燈中的投幣/押注/退幣沒有生效', S().pocket === 90 && total(S().bets) === 0, JSON.stringify({ p: S().pocket, bets: total(S().bets) }));
-  check('8. 中獎：得分 = 2 × 10 = 20，只結算一次', S().phase === 'win' && S().win === 20 && S().credit === 8, JSON.stringify({ win: S().win, credit: S().credit }));
-  check('8b. 中獎燈閃爍', D().getElementById('lamp-2').classList.contains('flash'));
+  check('8. 中獎：橘子 ×2 × 押 2 = 4，只結算一次', S().phase === 'win' && S().win === 4 && S().credit === 8, JSON.stringify({ win: S().win, credit: S().credit }));
+  check('8b. 中獎燈閃爍', D().getElementById('lamp-12').classList.contains('flash'));
   await sleep(1600);
 
   /* 猜大小 */
   forceRng(3); // n = 4 → 小
   press('btn-small'); await sleep(300); await waitFor(() => !G().ui.lock, 8000); await sleep(100);
-  check('9. 猜小猜中 → 得分加倍 40', S().win === 40 && S().phase === 'win', JSON.stringify({ win: S().win }));
+  check('9. 猜小猜中 → 得分加倍 8', S().win === 8 && S().phase === 'win', JSON.stringify({ win: S().win }));
   forceRng(6); // n = 7
   press('btn-large'); await sleep(300); await waitFor(() => S().phase === 'idle' && !G().ui.lock, 8000); await sleep(100);
   check('9b. 開 7 通吃 → 得分歸零', S().win === 0 && S().phase === 'idle' && S().credit === 8, JSON.stringify({ win: S().win, credit: S().credit }));
 
   /* 中獎後 START 轉分 */
-  forceRng(rollFor(1));
+  forceRng(rollFor(5));
   press('btn-bet-apple'); await sleep(40); press('btn-bet-apple'); await sleep(40);
   press('btn-start'); await waitFor(() => S().phase === 'win', 20000); await sleep(400);
   check('8c. 蘋果 ×5 × 押 2 = 10', S().win === 10 && S().credit === 6, JSON.stringify({ win: S().win, credit: S().credit }));
+  press('btn-tocredit'); await sleep(120);
+  check('8c2. WIN→CREDIT 鍵：得分 -1、投幣分數 +1', S().win === 9 && S().credit === 7, JSON.stringify({ win: S().win, credit: S().credit }));
+  press('btn-towin'); await sleep(120);
+  check('8c3. CREDIT→WIN 鍵：投幣分數 -1、得分 +1', S().win === 10 && S().credit === 6, JSON.stringify({ win: S().win, credit: S().credit }));
   press('btn-start'); await sleep(200); await waitFor(() => S().phase === 'idle' && !G().ui.lock, 8000); await sleep(100);
   press('btn-start'); await sleep(100);
   check('8d. START 轉分只一次：機台 16', S().credit === 16 && S().win === 0, JSON.stringify({ credit: S().credit }));
@@ -238,6 +253,7 @@ async function run() {
   /* 美術與無障礙 */
   check('美術. 24 個跑燈、無 emoji', D().querySelectorAll('.lamp').length === 24 && !/[\u{1F300}-\u{1FAFF}]/u.test(D().body.innerHTML));
   check('無障礙. 所有實體按鍵皆有 aria-label 與 role', [...D().querySelectorAll('.btn')].every((b) => b.getAttribute('aria-label') && b.getAttribute('role')), `${D().querySelectorAll('.btn').length} buttons`);
+  check('版面. 兩組紅色顯示、押分計數列、八顆圓形押分鍵', !!D().querySelector('#leds') && D().querySelectorAll('#bets .btn').length === 8 && Object.keys(G().cab.betDigits).length === 8);
 
   const failed = results.filter((r) => !r.pass);
   const sum = `${results.length - failed.length}/${results.length} 通過${failed.length ? `，失敗：${failed.map((f) => f.name).join('；')}` : ''}`;

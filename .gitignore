@@ -3,3 +3,4 @@ DEPLOYMENT_HANDOFF.md
 node_modules/
 test-results/
 playwright-report/
+reference/
