@@ -1,0 +1,81 @@
+/* 小瑪莉・民國七十年代 — 版面：整台機台置中、等比縮放，不產生捲軸 */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --ratio: calc(600 / 1180);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
+  background: #0c0705;
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
+  -webkit-user-select: none; user-select: none;
+  touch-action: manipulation;
+  font-family: 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', 'Heiti TC', sans-serif;
+}
+body {
+  /* 昏暗的電動間背景：磨石子地板的暗影與頂燈暈光 */
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(255, 170, 70, .16), transparent 70%),
+    radial-gradient(ellipse at 50% 100%, #1d120b, #0a0604 70%);
+  position: fixed; inset: 0; width: 100%;
+}
+#stage {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sat) var(--sar) var(--sab) var(--sal);
+}
+#machine {
+  --h: calc(100vh - var(--sat) - var(--sab));
+  --w: calc(100vw - var(--sal) - var(--sar));
+  width: min(var(--w), calc(var(--h) * 600 / 1180));
+  aspect-ratio: 600 / 1180;
+  filter: drop-shadow(0 8px 22px rgba(0, 0, 0, .75));
+}
+@supports (height: 100dvh) {
+  #machine {
+    --h: calc(100dvh - var(--sat) - var(--sab));
+    --w: calc(100dvw - var(--sal) - var(--sar));
+  }
+}
+#cabinet { display: block; width: 100%; height: 100%; touch-action: manipulation; }
+#cabinet text { pointer-events: none; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.nojs { color: #f3d48a; text-align: center; padding: 2rem; }
+
+/* ---------- 實體按鍵 ---------- */
+.btn { cursor: pointer; outline: none; }
+.btn .cap { transition: transform 45ms ease-out; }
+.btn.down .cap { transform: translateY(4px); }
+.btn.off { cursor: default; }
+.btn .dim { opacity: 0; transition: opacity .15s; }
+.btn.off .dim { opacity: .5; }
+.btn .glow { transition: opacity .15s; }
+.btn.lit .glow { opacity: .3; }
+.btn.ready .glow { animation: pulse 1.3s ease-in-out infinite; }
+.btn:focus-visible .well { stroke: #fff; stroke-width: 2.4; }
+#tray:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+@keyframes pulse { 0%, 100% { opacity: .04; } 50% { opacity: .38; } }
+
+/* ---------- 白熾燈：點亮瞬間、熄滅時有餘暉 ---------- */
+.lamp .lit { opacity: 0; transition: opacity .34s cubic-bezier(.2, .6, .3, 1); }
+.lamp.on .lit { opacity: 1; transition: opacity .02s linear; }
+.lamp.flash .lit { animation: flash .56s steps(1) infinite; }
+@keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: .18; } }
+
+/* ---------- 投幣孔燈與其他 ---------- */
+#slotLight, #slotLampLit { transition: opacity .08s; }
+#cabinet.needcoin #slotLampLit { animation: blink 1.1s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: .05; } 50% { opacity: .9; } }
+#tray { cursor: pointer; outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.ready .glow, #cabinet.needcoin #slotLampLit { animation: none; }
+}

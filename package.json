@@ -1,0 +1,12 @@
+{
+  "name": "xiaomali",
+  "version": "2.0.0",
+  "private": true,
+  "description": "小瑪莉・民國七十年代 — 台灣八〇年代木紋小瑪莉街機（虛擬貨幣，純娛樂）",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "serve": "node tests/serve.mjs"
+  },
+  "license": "MIT"
+}
