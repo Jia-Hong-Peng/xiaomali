@@ -1,0 +1,5 @@
+DEPLOYMENT_HANDOFF.md
+.omx/
+node_modules/
+test-results/
+playwright-report/
