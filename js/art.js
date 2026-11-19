@@ -118,6 +118,24 @@ export function terrazzoTexture(size = 200, seed = 1985) {
   } catch { return null; }
 }
 
+/** 投幣器的銀灰顆粒面板（參考照片 6）：細密的深淺顆粒，可平鋪。 */
+export function graniteTexture(size = 128, seed = 606) {
+  try {
+    const cv = document.createElement('canvas');
+    cv.width = size; cv.height = size;
+    const ctx = cv.getContext('2d');
+    const img = ctx.createImageData(size, size);
+    const rnd = mulberry32(seed);
+    for (let i = 0; i < size * size; i++) {
+      const r = rnd();
+      const v = r < 0.5 ? 150 + rnd() * 40 : r < 0.8 ? 190 + rnd() * 50 : 90 + rnd() * 50;
+      img.data[i * 4] = v * 0.95; img.data[i * 4 + 1] = v * 0.97; img.data[i * 4 + 2] = Math.min(255, v * 1.05); img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return cv.toDataURL('image/png');
+  } catch { return null; }
+}
+
 /** 種子亂數產生的刮痕線條 path 字串。 */
 export function scratches(count, w, h, seed = 7, maxLen = 90) {
   const rnd = mulberry32(seed);

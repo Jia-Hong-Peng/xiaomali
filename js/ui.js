@@ -619,7 +619,7 @@ export class Game {
     const g = document.createElementNS(SVGNS, 'g');
     g.innerHTML = `<ellipse rx="13" ry="13" fill="url(#gCoin)" stroke="#6f7473" stroke-width="1.4"/><ellipse rx="9.5" ry="9.5" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1"/><text y="4" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="11" fill="#5a5f5e">10</text>`;
     layer.appendChild(g);
-    const x0 = 430, y0 = 1066, x1 = 482, y1 = 58;
+    const x0 = 430, y0 = 1066, x1 = 520, y1 = 40;
     const t0 = performance.now(), dur = 250;
     const step = (now) => {
       const t = clamp01((now - t0) / dur);

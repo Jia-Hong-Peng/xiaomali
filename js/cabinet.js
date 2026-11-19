@@ -3,7 +3,7 @@
 // 棋盤下緣一排「最高倍數 + 圖案 + 各門押分計數」、面板上兩排圓形橘色街機按鍵
 // （PAY、WIN↔CREDIT、DOUBLE UP BET、START；八個押分鍵分兩組）、右上角金屬投幣器。
 import {
-  SVGNS, symbolDefs, MARY_ART, sevenSegment, woodTexture, grainTexture, scratches, shade,
+  SVGNS, symbolDefs, MARY_ART, sevenSegment, woodTexture, grainTexture, graniteTexture, scratches, shade,
 } from './art.js';
 import { LAMPS, SYMBOL_BY_ID, ONCE_MORE, BET_LAYOUT } from './config.js';
 
@@ -29,14 +29,12 @@ function screw(x, y, r = 4.2, rot = 0) {
   return `<g transform="translate(${x} ${y}) rotate(${rot})"><circle r="${r}" fill="url(#gScrew)" stroke="#2a1a0c" stroke-width=".8"/><path d="M${-r * 0.7} 0H${r * 0.7}" stroke="#2a2018" stroke-width="1.3"/></g>`;
 }
 
-function defs(woodUrl, grainUrl) {
-  const san = (id, c) => `
-    <radialGradient id="gSan-${id}" cx=".38" cy=".3" r=".85">
-      <stop offset="0" stop-color="${shade(c, 0.6)}"/><stop offset=".4" stop-color="${c}"/><stop offset="1" stop-color="${shade(c, -0.45)}"/>
-    </radialGradient>`;
+function defs(woodUrl, grainUrl, graniteUrl) {
   return `
   ${symbolDefs()}
-  ${san('orange', '#ff9a1c')}${san('red', '#e2302a')}
+  ${graniteUrl ? `<pattern id="pGranite" patternUnits="userSpaceOnUse" width="128" height="128"><image href="${graniteUrl}" width="128" height="128"/></pattern>` : ''}
+  <linearGradient id="gKeyTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1eee6"/><stop offset=".55" stop-color="#d6d1c4"/><stop offset="1" stop-color="#b9b3a3"/></linearGradient>
+  <linearGradient id="gKeySide" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7f7a6c"/><stop offset=".18" stop-color="#b4aea0"/><stop offset=".82" stop-color="#a7a193"/><stop offset="1" stop-color="#6c675a"/></linearGradient>
   <pattern id="pWood" patternUnits="userSpaceOnUse" width="${VB_W}" height="${VB_H}">
     ${woodUrl ? `<image href="${woodUrl}" width="${VB_W}" height="${VB_H}" preserveAspectRatio="none"/>` : `<rect width="${VB_W}" height="${VB_H}" fill="#4a2a17"/>`}
   </pattern>
@@ -105,35 +103,38 @@ function lampCellMarkup(i) {
   </g>`;
 }
 
-/** 圓形街機按鍵（半透明橘色／紅色，內有一圈凹盤）。 */
-function roundButton({ act, arg = '', cx, cy, r = 27, hitW = 86, hitH = 72, color = 'orange', aria, id }) {
-  const base = color === 'red' ? '#e2302a' : '#ff9a1c';
+/**
+ * 梯形灰色鍵帽（參考照片 5、6：黑色面板上的老式機台按鍵，不是圓形街機鍵）。
+ * 頂面較亮、兩側斜面較暗；按下時整個鍵帽下沉。
+ */
+function keyButton({ act, arg = '', cx, cy, w = 52, h = 44, hitW = 70, hitH = 88, aria, id }) {
+  const x = cx - w / 2, y = cy - h / 2, ins = 8;
   return `
   <g class="btn" id="${id}" data-act="${act}" data-arg="${arg}" role="button" tabindex="0" aria-label="${esc(aria)}">
-    <circle class="well" cx="${cx}" cy="${cy + 1}" r="${r + 5}" fill="#0d0b0a" stroke="#4a4036" stroke-width="1.6"/>
+    <rect class="well" x="${x - 3}" y="${y - 2}" width="${w + 6}" height="${h + 6}" rx="3" fill="#050403"/>
     <g class="cap">
-      <circle cx="${cx}" cy="${cy + 5}" r="${r}" fill="${shade(base, -0.62)}"/>
-      <circle class="face" cx="${cx}" cy="${cy}" r="${r}" fill="url(#gSan-${color})" stroke="${shade(base, -0.5)}" stroke-width="1.4"/>
-      <circle cx="${cx}" cy="${cy}" r="${r * 0.72}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="2"/>
-      <circle cx="${cx}" cy="${cy}" r="${r * 0.72}" fill="none" stroke="#000" stroke-opacity=".12" stroke-width="1" transform="translate(1 1)"/>
-      <ellipse cx="${cx - r * 0.25}" cy="${cy - r * 0.5}" rx="${r * 0.42}" ry="${r * 0.2}" fill="#fff" opacity=".42"/>
-      <circle class="glow" cx="${cx}" cy="${cy}" r="${r}" fill="#ffe35a" opacity="0"/>
-      <circle class="dim" cx="${cx}" cy="${cy}" r="${r}" fill="#120a06" opacity="0"/>
+      <polygon points="${x},${y + h} ${x + w},${y + h} ${x + w - ins + 1},${y + 8} ${x + ins - 1},${y + 8}" fill="url(#gKeySide)" stroke="#3a372f" stroke-width="1"/>
+      <rect class="face" x="${x + ins}" y="${y}" width="${w - 2 * ins}" height="${h * 0.62}" rx="5" fill="url(#gKeyTop)" stroke="#8b8678" stroke-width="1"/>
+      <path d="M${x + ins + 4} ${y + 4.5}H${x + w - ins - 4}" stroke="#fff" stroke-opacity=".75" stroke-width="2" stroke-linecap="round"/>
+      <rect class="glow" x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#ffd34a" opacity="0"/>
+      <rect class="dim" x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#120a06" opacity="0"/>
     </g>
     <rect class="hit" x="${cx - hitW / 2}" y="${cy - hitH / 2}" width="${hitW}" height="${hitH}" fill="transparent"/>
   </g>`;
 }
 
-const labelBlock = (x, w, y, h, fill, text, color = '#fff', size = 14) =>
-  `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${fill}"/>
-   <text x="${x + w / 2}" y="${y + h / 2 + size * 0.36}" text-anchor="middle" font-family="${FONT_SANS}" font-weight="900" font-size="${size}" fill="${color}" letter-spacing=".5">${text}</text>`;
-const caption = (x, y, text) =>
-  `<text x="${x}" y="${y}" text-anchor="middle" font-family="${FONT_SANS}" font-weight="800" font-size="11" fill="#2a1d10">${text}</text>`;
+/** 面板上的彩色分組框（黃 = PAY、橘 = 得分↔分數、紅 = 比大小、藍 = START；外框為綠色）。 */
+const groupBox = (x, w, fill, label, textColor = '#2a1a04') =>
+  `<rect x="${x}" y="838" width="${w}" height="86" rx="8" fill="${fill}" stroke="#27a867" stroke-width="3.5"/>
+   <text x="${x + w / 2}" y="850" text-anchor="middle" font-family="${FONT_SANS}" font-weight="900" font-size="9.5" fill="${textColor}" letter-spacing=".4">${label}</text>`;
+const keyCaption = (x, text, color = '#2a1a04') =>
+  `<text x="${x}" y="919" text-anchor="middle" font-family="${FONT_SANS}" font-weight="900" font-size="10" fill="${color}">${text}</text>`;
 
 /* ---------- 組裝整台機器 ---------- */
 export function buildCabinet(root) {
   const woodUrl = woodTexture();
   const grainUrl = grainTexture();
+  const graniteUrl = graniteTexture();
   const colW = 540 / 8;
 
   // 棋盤下緣：最高倍數 / 圖案 / 押分計數
@@ -148,10 +149,10 @@ export function buildCabinet(root) {
 
   // 面板：下排八個押分鍵（兩組各四個），圖案印在鍵上方
   const betBtns = BET_LAYOUT.map((id, i) => {
-    const cx = 30 + colW * (i + 0.5) + (i < 4 ? -4 : 4);
+    const cx = 30 + colW * (i + 0.5);
     return `
-    <use href="#sym-${id}" x="${cx - 16}" y="938" width="32" height="32"/>
-    ${roundButton({ act: 'bet', arg: id, cx, cy: 1004, r: 25, hitW: colW, hitH: 92, id: `btn-bet-${id}`, aria: `押${SYMBOL_BY_ID[id].name}，賠率${SYMBOL_BY_ID[id].mults.join('/')}倍` })}`;
+    <use href="#sym-${id}" x="${cx - 15}" y="934" width="30" height="30"/>
+    ${keyButton({ act: 'bet', arg: id, cx, cy: 1000, hitW: 70, hitH: 90, id: `btn-bet-${id}`, aria: `押${SYMBOL_BY_ID[id].name}，賠率${SYMBOL_BY_ID[id].mults.join('/')}倍` })}`;
   }).join('');
 
   const rays = Array.from({ length: 24 }, (_, k) => {
@@ -161,7 +162,7 @@ export function buildCabinet(root) {
 
   const svg = `
 <svg id="cabinet" xmlns="${SVGNS}" viewBox="0 0 ${VB_W} ${VB_H}" preserveAspectRatio="xMidYMid meet" role="application" aria-label="水果瑪莉機台" focusable="false">
-  <defs>${defs(woodUrl, grainUrl)}</defs>
+  <defs>${defs(woodUrl, grainUrl, graniteUrl)}</defs>
 
   <!-- 機身木紋 -->
   <rect width="${VB_W}" height="${VB_H}" rx="14" fill="url(#pWood)"/>
@@ -182,21 +183,21 @@ export function buildCabinet(root) {
   <text x="420" y="61" text-anchor="end" font-family="${FONT_SANS}" font-weight="900" font-size="11" fill="#8a2a10">瑪莉</text>
   ${screw(35, 29, 3.4)}${screw(429, 29, 3.4)}${screw(35, 75, 3.4)}${screw(429, 75, 3.4)}
 
-  <!-- 投幣器（金屬）：點一下投入一枚 NT$10 -->
+  <!-- 投幣器（金屬，參考照片 6：銀灰顆粒面板、上方投幣槽、中間黑色窗、下方退幣桿）：點一下投入一枚 NT$10 -->
   <g class="btn" id="btn-coin" data-act="coin" role="button" tabindex="0" aria-label="投入一枚十元硬幣">
-    <rect x="454" y="12" width="122" height="80" rx="5" fill="url(#gMech)" stroke="#3a3d40" stroke-width="2"/>
-    <rect x="460" y="18" width="110" height="68" rx="3" fill="#5a5f64" opacity=".35"/>
-    <circle id="slotLamp" cx="482" cy="25" r="4" fill="#4a1a10" stroke="#1a0a06" stroke-width="1"/>
-    <circle id="slotLampLit" class="slotlit" cx="482" cy="25" r="17" fill="url(#gSlotLamp)" opacity="0"/>
-    <rect x="474" y="33" width="16" height="46" rx="3" fill="#050302" stroke="#2a2d30" stroke-width="2"/>
-    <rect id="slotLight" x="480" y="37" width="4" height="38" rx="2" fill="#ff9a3a" opacity="0"/>
-    <rect x="474" y="33" width="16" height="46" rx="3" fill="none" stroke="#f4f4f0" stroke-width="1" opacity=".55"/>
-    <rect x="504" y="30" width="54" height="16" rx="3" fill="url(#gChrome)" stroke="#33363a" stroke-width="1.4"/>
-    <text x="531" y="42" text-anchor="middle" font-family="${FONT_SANS}" font-weight="900" font-size="10" fill="#2a2d30">退幣</text>
-    <circle cx="531" cy="64" r="13" fill="url(#gChrome)" stroke="#33363a" stroke-width="1.4"/>
-    <text x="531" y="69" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="14" fill="#2a2d30">10</text>
-    <rect class="hit" x="448" y="8" width="132" height="88" fill="transparent"/>
-    ${screw(464, 22, 2.6)}${screw(566, 22, 2.6)}${screw(464, 82, 2.6)}${screw(566, 82, 2.6)}
+    <rect x="484" y="12" width="72" height="80" rx="5" fill="#9ba1a9" stroke="#33363a" stroke-width="2"/>
+    ${graniteUrl ? '<rect x="484" y="12" width="72" height="80" rx="5" fill="url(#pGranite)"/>' : ''}
+    <rect x="486" y="14" width="68" height="76" rx="4" fill="none" stroke="#f4f6f8" stroke-opacity=".55" stroke-width="1"/>
+    <circle id="slotLamp" cx="470" cy="30" r="4" fill="#4a1a10" stroke="#1a0a06" stroke-width="1"/>
+    <circle id="slotLampLit" class="slotlit" cx="470" cy="30" r="17" fill="url(#gSlotLamp)" opacity="0"/>
+    <rect x="506" y="20" width="28" height="38" rx="2" fill="#0a0a0c" stroke="#eceef0" stroke-width="1.4"/>
+    <rect x="512" y="22" width="3" height="34" fill="#70757b"/><rect x="525" y="22" width="3" height="34" fill="#70757b"/>
+    <rect id="slotLight" x="518" y="24" width="4" height="30" rx="2" fill="#ff9a3a" opacity="0"/>
+    <rect x="498" y="62" width="44" height="10" rx="1" fill="#07070a" stroke="#53585d" stroke-width="1"/>
+    <rect x="517" y="75" width="6" height="12" rx="3" fill="#0a0a0c" stroke="#d8dadd" stroke-width="1"/>
+    <path d="M512 74h16l-8 6Z" fill="#2a2d30"/>
+    <rect class="hit" x="452" y="8" width="112" height="88" fill="transparent"/>
+    ${screw(491, 19, 2.6)}${screw(549, 19, 2.6)}${screw(491, 85, 2.6)}${screw(549, 85, 2.6)}
   </g>
 
   <!-- 玻璃面板：金屬框 -->
@@ -206,11 +207,13 @@ export function buildCabinet(root) {
   <g clip-path="url(#cpGlass)">
     <rect x="26" y="106" width="548" height="698" fill="url(#gBoard)"/>
 
-    <!-- 上緣兩組紅色七段顯示 -->
-    <rect x="34" y="112" width="262" height="62" rx="4" fill="#090504" stroke="#4a331a" stroke-width="1.4"/>
-    <rect x="304" y="112" width="262" height="62" rx="4" fill="#090504" stroke="#4a331a" stroke-width="1.4"/>
-    <g font-family="${FONT_SANS}" font-weight="900" font-size="12" text-anchor="middle" fill="#ffb02e">
-      <text x="165" y="127">中獎分　BONUS-WIN</text><text x="435" y="127">投幣分　CREDIT</text>
+    <!-- 上緣兩組紅色七段顯示（參考照片 6：切角的橘紅色框，標示「中獎金額」「投幣金額」） -->
+    <polygon points="48,112 282,112 296,126 296,160 282,174 48,174 34,160 34,126" fill="#c4401c" stroke="#4a1006" stroke-width="2"/>
+    <polygon points="42,131 288,131 288,165 280,170 50,170 42,165" fill="#120504"/>
+    <polygon points="318,112 552,112 566,126 566,160 552,174 318,174 304,160 304,126" fill="#c4401c" stroke="#4a1006" stroke-width="2"/>
+    <polygon points="312,131 558,131 558,165 550,170 320,170 312,165" fill="#120504"/>
+    <g font-family="${FONT_SANS}" font-weight="900" font-size="12.5" text-anchor="middle" fill="#ffe0b0" letter-spacing="2">
+      <text x="165" y="125">中獎金額</text><text x="435" y="125">投幣金額</text>
     </g>
     <g id="leds"></g>
 
@@ -261,28 +264,29 @@ export function buildCabinet(root) {
     <path d="${scratches(26, 548, 698, 11, 120).replace(/M([\d.]+) ([\d.]+)/g, (_, a, b) => `M${(+a + 26).toFixed(1)} ${(+b + 106).toFixed(1)}`)}" stroke="#fff" stroke-opacity=".16" stroke-width=".6" fill="none"/>
   </g>
 
-  <!-- 操作面板（印刷面板 + 圓形街機鍵） -->
-  <rect x="20" y="818" width="560" height="224" rx="6" fill="#1a0e07" stroke="url(#gBrass)" stroke-width="3.5"/>
-  <rect x="26" y="824" width="548" height="212" rx="3" fill="url(#gPlate)" stroke="#3a2c1a" stroke-width="1.2"/>
-  ${labelBlock(48, 70, 830, 20, '#f2c21c', 'PAY', '#3a2a06')}
-  ${labelBlock(134, 150, 830, 20, '#f2c21c', 'WIN ↔ CREDIT', '#3a2a06')}
-  ${labelBlock(306, 150, 830, 20, '#c8231f', 'DOUBLE UP BET', '#fff')}
-  ${labelBlock(482, 70, 830, 20, '#1f4fb0', 'START', '#fff')}
+  <!-- 操作面板（參考照片 5、6：黑底、黃色雙線框；彩色分組框 + 梯形灰色鍵帽；下排一條白底印刷條，圖案印在鍵上方） -->
+  <rect x="20" y="818" width="560" height="224" rx="6" fill="#0d0c0b" stroke="url(#gBrass)" stroke-width="3.5"/>
+  <rect x="28" y="826" width="544" height="208" rx="4" fill="#090807" stroke="#e8c030" stroke-width="2"/>
+  <rect x="34" y="832" width="532" height="196" rx="3" fill="none" stroke="#e8c030" stroke-width="1.2"/>
+  ${groupBox(44, 76, '#f2c21c', 'PAY')}
+  ${groupBox(132, 148, '#f08a1a', 'WIN ↔ CREDIT')}
+  ${groupBox(292, 148, '#d8281c', 'DOUBLE UP BET', '#fff')}
+  ${groupBox(456, 76, '#23a8c8', 'START', '#07303c')}
   <g id="controls">
-    ${roundButton({ act: 'cash', cx: 83, cy: 886, id: 'btn-cash', aria: '退幣，領回所有分數' })}
-    ${roundButton({ act: 'toCredit', cx: 170, cy: 886, id: 'btn-tocredit', aria: '得分轉到投幣分數，按住可連續轉' })}
-    ${roundButton({ act: 'toWin', cx: 257, cy: 886, id: 'btn-towin', aria: '投幣分數轉到得分，按住可連續轉' })}
-    ${roundButton({ act: 'small', cx: 343, cy: 886, color: 'red', id: 'btn-small', aria: '猜小（1 到 6）' })}
-    ${roundButton({ act: 'large', cx: 430, cy: 886, color: 'red', id: 'btn-large', aria: '猜大（8 到 13）' })}
-    ${roundButton({ act: 'start', cx: 517, cy: 886, id: 'btn-start', aria: '開始，啟動跑燈；有得分時按下可把得分轉入投幣分數' })}
+    ${keyButton({ act: 'cash', cx: 82, cy: 881, hitW: 76, id: 'btn-cash', aria: '退幣，領回所有分數' })}
+    ${keyButton({ act: 'toCredit', cx: 168, cy: 881, hitW: 72, id: 'btn-tocredit', aria: '得分轉到投幣分數，按住可連續轉' })}
+    ${keyButton({ act: 'toWin', cx: 244, cy: 881, hitW: 72, id: 'btn-towin', aria: '投幣分數轉到得分，按住可連續轉' })}
+    ${keyButton({ act: 'small', cx: 328, cy: 881, hitW: 72, id: 'btn-small', aria: '猜小（1 到 6）' })}
+    ${keyButton({ act: 'large', cx: 404, cy: 881, hitW: 72, id: 'btn-large', aria: '猜大（8 到 13）' })}
+    ${keyButton({ act: 'start', cx: 494, cy: 881, hitW: 76, id: 'btn-start', aria: '開始，啟動跑燈；有得分時按下可把得分轉入投幣分數' })}
   </g>
   <g>
-    ${caption(83, 934, '退幣')}${caption(170, 934, '得分→分數')}${caption(257, 934, '分數→得分')}
-    ${caption(343, 934, '猜小 1–6')}${caption(430, 934, '猜大 8–13')}${caption(517, 934, '開始')}
+    ${keyCaption(82, '退幣')}${keyCaption(168, '得分→')}${keyCaption(244, '→得分')}
+    ${keyCaption(328, '猜小', '#fff')}${keyCaption(404, '猜大', '#fff')}${keyCaption(494, '開始', '#07303c')}
   </g>
-  <path d="M34 940H566" stroke="#3a2c1a" stroke-opacity=".35" stroke-width="1"/>
+  <rect x="38" y="928" width="524" height="94" rx="9" fill="#f4f1e6" stroke="#27a867" stroke-width="3.5"/>
   <g id="bets">${betBtns}</g>
-  ${screw(34, 832, 3)}${screw(566, 832, 3)}${screw(34, 1028, 3)}${screw(566, 1028, 3)}
+  ${screw(36, 832, 3)}${screw(564, 832, 3)}${screw(36, 1026, 3)}${screw(564, 1026, 3)}
 
   <!-- 現金牌與音效開關 -->
   <rect x="22" y="1048" width="556" height="30" rx="4" fill="#1b0f08" fill-opacity=".6"/>

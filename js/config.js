@@ -77,8 +77,9 @@ export const LAMPS = [
   L('bell', 2),           // 23 鈴鐺 ×2
 ].map((l, i) => ({ ...l, weight: LAMP_WEIGHTS[i] }));
 
-// 實體押注鍵由左到右的順序（參考機台：BAR、77、雙星、西瓜 | 鈴鐺、木瓜、橘子、蘋果）
-export const BET_LAYOUT = ['bar', 'seven', 'star', 'watermelon', 'bell', 'papaya', 'orange', 'apple'];
+// 實體押注鍵由左到右的順序（參考照片 5、6 的老式機台：蘋果、西瓜、雙星、77、BAR、鈴鐺、木瓜、橘子）
+// 注意：照片 3 的另一台機器順序不同（BAR 在最左）；不同機型的鍵序不一，本站採照片 5、6。
+export const BET_LAYOUT = ['apple', 'watermelon', 'star', 'seven', 'bar', 'bell', 'papaya', 'orange'];
 export const SYMBOL_BY_ID = Object.fromEntries(SYMBOLS.map((s) => [s.id, s]));
 export const SYMBOL_IDS = SYMBOLS.map((s) => s.id);
 export const ONCE_MORE = 'oncemore';
