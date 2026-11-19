@@ -296,8 +296,15 @@ export function buildCabinet(root) {
   <rect x="174" y="1051" width="254" height="24" rx="3" fill="#0a0504"/>
   <text x="184" y="1068" font-family="${FONT_SANS}" font-weight="900" font-size="13" fill="#e8b24a">身上現金 NT$</text>
   <g id="pocketLed"></g>
-  <text x="566" y="1065" text-anchor="end" font-family="${FONT_SANS}" font-weight="700" font-size="9.5" fill="#d7bf84" opacity=".85">僅供娛樂</text>
-  <text x="566" y="1075" text-anchor="end" font-family="${FONT_SANS}" font-weight="700" font-size="8" fill="#d7bf84" opacity=".7">無真實金錢</text>
+  <!-- 機台貼紙（實機常見的黃底黑字警示貼紙，邊角磨損） -->
+  <g transform="rotate(-1.2 505 1063)">
+    <rect x="440" y="1050" width="132" height="27" rx="2" fill="#f0c020" stroke="#3a2a06" stroke-width="1"/>
+    <path d="M440 1050H572V1055H440Z" fill="#1c1c1c" opacity=".9"/>
+    <path d="M444 1050l8 5M460 1050l8 5M476 1050l8 5M492 1050l8 5M508 1050l8 5M524 1050l8 5M540 1050l8 5M556 1050l8 5" stroke="#f0c020" stroke-width="3"/>
+    <text x="506" y="1067" text-anchor="middle" font-family="${FONT_SANS}" font-weight="900" font-size="9.5" fill="#241a04">本機為娛樂類機台</text>
+    <text x="506" y="1075.500" text-anchor="middle" font-family="${FONT_SANS}" font-weight="900" font-size="8.5" fill="#241a04">不得兌換現金　無真實金錢</text>
+    <path d="M566 1077l6-6v6Z" fill="#8a6a10" opacity=".7"/>
+  </g>
 
   <!-- 金屬退幣盤 -->
   <g transform="translate(0 16)">

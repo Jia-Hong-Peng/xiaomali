@@ -70,3 +70,20 @@ export function runSchedule(steps, { onStep, onDone, timer = { set: (fn, ms) => 
     get done() { return finished; },
   };
 }
+
+/**
+ * 待機燈光秀：依步數回傳要亮的燈位集合。四種花樣輪流（單燈順跑、彗星、奇偶交替、對角雙燈）。
+ * 純函式，可測試。
+ */
+export function attractPattern(step, n = NUM_LAMPS) {
+  const i = step % n;
+  const mode = Math.floor(step / (n * 3)) % 4;
+  const at = (k) => ((k % n) + n) % n;
+  if (mode === 0) return [i];
+  if (mode === 1) return [i, at(i - 1), at(i - 2)];
+  if (mode === 2) {
+    const odd = Math.floor(step / 3) % 2;
+    return Array.from({ length: n }, (_, k) => k).filter((k) => k % 2 === odd);
+  }
+  return [i, at(i + n / 2)];
+}

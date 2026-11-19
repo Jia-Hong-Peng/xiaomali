@@ -6,7 +6,7 @@ import {
   totalBet,
 } from '../js/engine.js';
 import { loadState, saveState, validateState } from '../js/storage.js';
-import { buildSchedule, runSchedule, scheduleDuration } from '../js/anim.js';
+import { buildSchedule, runSchedule, scheduleDuration, attractPattern } from '../js/anim.js';
 import {
   LAMPS, NUM_LAMPS, MAX_BET_PER_SYMBOL, MIN_BET_PER_SYMBOL, SAVE_KEY, WEIGHT_TOTAL, SYMBOLS, OM_LAMPS,
   PRIZE_LAMPS, DOUBLE_UP, ONCE_MORE,
@@ -504,4 +504,19 @@ test('抽籤：各燈位命中率接近權重（±0.4%）', () => {
   const N = 300000; const hit = new Array(NUM_LAMPS).fill(0);
   for (let i = 0; i < N; i++) hit[drawSpin().target]++;
   LAMPS.forEach((l, i) => assert.ok(Math.abs(hit[i] / N - l.weight / WEIGHT_TOTAL) < 0.004, `lamp ${i}`));
+});
+
+test('待機燈光秀：四種花樣輪流、燈位都在 0–23、確實會動', () => {
+  const seen = new Set();
+  const modes = new Set();
+  for (let step = 0; step < 24 * 3 * 4 * 2; step++) {
+    const lamps = attractPattern(step);
+    assert.ok(lamps.length >= 1 && lamps.length <= 12);
+    for (const l of lamps) assert.ok(Number.isInteger(l) && l >= 0 && l < NUM_LAMPS);
+    assert.equal(new Set(lamps).size, lamps.length);
+    seen.add(lamps.join(','));
+    modes.add(Math.floor(step / (24 * 3)) % 4 + ':' + (lamps.length === 1 ? 'single' : lamps.length === 2 ? 'pair' : lamps.length === 3 ? 'comet' : 'half'));
+  }
+  assert.ok(seen.size > 40);
+  assert.deepEqual([...modes].sort(), ['0:single', '1:comet', '2:half', '3:pair']);
 });

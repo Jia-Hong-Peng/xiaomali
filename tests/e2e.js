@@ -31,12 +31,12 @@ function navigate(url) {
 
 /** 載入遊戲。seed 為字串時，先寫入存檔再載入；clear 會先清空 localStorage。 */
 async function load({ clear = true, seed = null } = {}) {
-  await navigate(`../index.html?x=${Math.random()}`);
+  await navigate(`../index.html?quick&x=${Math.random()}`);
   if (clear || seed !== null) {
     const ls = W().localStorage;
     if (clear) ls.clear();
     if (seed !== null) ls.setItem(SAVE_KEY, seed);
-    await navigate(`../index.html?y=${Math.random()}`);
+    await navigate(`../index.html?quick&y=${Math.random()}`);
   }
   for (let i = 0; i < 100 && !W().__xiaomali; i++) await sleep(30);
   await sleep(60);
@@ -249,6 +249,24 @@ async function run() {
   check('14c. 靜音時完全無聲', pk2 < 0.001, `peak=${pk2}`);
   press('btn-sound'); await sleep(80);
   check('14d. 音效開關：切換並寫入存檔', S().soundOn === false && JSON.parse(W().localStorage.getItem(SAVE_KEY)).soundOn === false && au.enabled === false);
+
+  /* 氛圍：待機燈光秀 / 開機自我檢測 */
+  await load();
+  W().__xiaomali.ATTRACT.delay = 300;
+  await sleep(1500);
+  const litA = [...G().ui.onLamps].join(','); await sleep(400); const litB = [...G().ui.onLamps].join(',');
+  check('氛圍1. 沒人投幣一陣子後自動跑燈（待機燈光秀）', G()._attracting === true && litA !== litB, `${litA} -> ${litB}`);
+  press('btn-coin'); await sleep(450);
+  check('氛圍2. 一投幣燈光秀立刻停止，回到上次停燈位置', G()._attracting === false && [...G().ui.onLamps].join(',') === String(S().lamp), `lit=${[...G().ui.onLamps]} lamp=${S().lamp}`);
+  await sleep(1200);
+  check('氛圍3. 有分數時不會進入待機燈光秀', G()._attracting === false);
+  await navigate('../index.html?poweron=' + Math.random()); for (let i = 0; i < 100 && !W().__xiaomali; i++) await sleep(30);
+  await sleep(500);
+  check('氛圍4. 開機自我檢測：顯示器全亮、期間操作被鎖定', G().ui.lock === true && G()._poweringOn === true);
+  await sleep(2100);
+  check('氛圍5. 自我檢測結束後解除鎖定，並回到正常顯示', G().ui.lock === false && G()._poweringOn === false && S().pocket >= 0);
+  const filmOk = !!D().getElementById('film') && !!D().getElementById('floor') && !!D().getElementById('ceiling');
+  check('氛圍6. 電動間背景層（日光燈、磨石子地板、顆粒）存在且不攔截點擊', filmOk && getComputedStyle(D().getElementById('film')).pointerEvents === 'none');
 
   /* 美術與無障礙 */
   check('美術. 24 個跑燈、無 emoji', D().querySelectorAll('.lamp').length === 24 && !/[\u{1F300}-\u{1FAFF}]/u.test(D().body.innerHTML));

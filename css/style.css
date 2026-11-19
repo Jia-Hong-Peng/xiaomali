@@ -79,3 +79,32 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .btn.ready .glow, #cabinet.needcoin #slotLampLit { animation: none; }
 }
+
+/* ---------- 電動間氛圍：天花板日光燈、磨石子地板、老照片顆粒 ---------- */
+body {
+  background:
+    linear-gradient(#2a2118 0 62%, #5a4a30 62% calc(62% + 2px), #22342a calc(62% + 2px) 100%);
+}
+#ceiling {
+  position: fixed; left: 0; right: 0; top: 0; height: 26vh; pointer-events: none;
+  background:
+    radial-gradient(ellipse 46% 70% at 50% 0%, rgba(255, 240, 190, .34), rgba(255, 220, 150, .1) 55%, transparent 75%);
+  animation: tube 11s linear infinite;
+}
+@keyframes tube { 0%, 90%, 100% { opacity: 1; } 91% { opacity: .55; } 92% { opacity: 1; } 94% { opacity: .7; } 95% { opacity: 1; } }
+#floor {
+  position: fixed; left: 0; right: 0; bottom: 0; height: 20vh; pointer-events: none;
+  background:
+    linear-gradient(rgba(0, 0, 0, .55), rgba(0, 0, 0, .05) 30%, rgba(0, 0, 0, .25)),
+    var(--floor, #4a443c);
+  background-size: auto, 200px 200px;
+}
+#stage { z-index: 2; }
+#film {
+  position: fixed; inset: 0; pointer-events: none; z-index: 6;
+  background-color: rgba(255, 160, 50, .045);
+  background-image: var(--grain);
+  background-size: 256px 256px;
+  opacity: .2;
+}
+@media (prefers-reduced-motion: reduce) { #ceiling { animation: none; } }

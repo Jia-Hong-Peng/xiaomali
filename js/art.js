@@ -85,6 +85,39 @@ export function grainTexture(size = 192, seed = 42) {
   } catch { return null; }
 }
 
+/** 磨石子地板（電動間常見的地面）：灰米底色 + 深淺碎石，可平鋪。 */
+export function terrazzoTexture(size = 200, seed = 1985) {
+  try {
+    const cv = document.createElement('canvas');
+    cv.width = size; cv.height = size;
+    const ctx = cv.getContext('2d');
+    const rnd = mulberry32(seed);
+    ctx.fillStyle = '#8f8678'; ctx.fillRect(0, 0, size, size);
+    const nz = makeNoise(seed + 5);
+    const img = ctx.getImageData(0, 0, size, size);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const v = (nz(x * 0.08, y * 0.08) - 0.5) * 26;
+      const i = (y * size + x) * 4;
+      img.data[i] += v; img.data[i + 1] += v; img.data[i + 2] += v * 0.9;
+    }
+    ctx.putImageData(img, 0, 0);
+    const chips = ['#3a3430', '#d9d2c4', '#6b4a38', '#b9ad98', '#2a2622', '#e8e2d4', '#7a6a56'];
+    for (let i = 0; i < 260; i++) {
+      ctx.fillStyle = chips[Math.floor(rnd() * chips.length)];
+      ctx.globalAlpha = 0.55 + rnd() * 0.4;
+      const x = rnd() * size, y = rnd() * size, r = 1 + rnd() * 4.2;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + rnd() * 0.6, rr = r * (0.6 + rnd() * 0.6);
+        ctx[k ? 'lineTo' : 'moveTo'](x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    return cv.toDataURL('image/jpeg', 0.8);
+  } catch { return null; }
+}
+
 /** 種子亂數產生的刮痕線條 path 字串。 */
 export function scratches(count, w, h, seed = 7, maxLen = 90) {
   const rnd = mulberry32(seed);

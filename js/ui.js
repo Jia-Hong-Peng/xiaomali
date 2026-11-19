@@ -2,9 +2,9 @@
 import { Machine, totalBet, taipeiDateKey } from './engine.js';
 import { loadState, saveState } from './storage.js';
 import { buildCabinet } from './cabinet.js';
-import { buildSchedule, runSchedule } from './anim.js';
+import { buildSchedule, runSchedule, attractPattern } from './anim.js';
 import {
-  SYMBOLS, SYMBOL_BY_ID, LAMPS, COIN_VALUE, SPIN, MAX_BET_PER_SYMBOL, BET_LAYOUT,
+  SYMBOLS, SYMBOL_BY_ID, LAMPS, COIN_VALUE, SPIN, MAX_BET_PER_SYMBOL, BET_LAYOUT, ATTRACT,
 } from './config.js';
 import { SVGNS } from './art.js';
 
@@ -21,7 +21,12 @@ function safeStorage() {
 }
 
 export class Game {
-  constructor(root, { storage = safeStorage(), audio, now = () => new Date(), machineOptions } = {}) {
+  constructor(root, { storage = safeStorage(), audio, now = () => new Date(), machineOptions, powerOn = true } = {}) {
+    this.powerOnEnabled = powerOn;
+    this._lastAct = performance.now();
+    this._attracting = false;
+    this._attractStep = 0;
+    this._poweringOn = false;
     this.root = root;
     this.storage = storage;
     this.audio = audio;
@@ -61,6 +66,48 @@ export class Game {
     if (this.recovered) this._flashMsg('存檔異常', '已重設為初始狀態', 4000);
     else if (daily.changed && daily.granted > 0) this._flashMsg('新的一天', `零用金補發 NT$${daily.granted}`, 4000);
     this._dailyTimer = setInterval(() => this._checkDaily(), 20000);
+    this._attractTimer = setInterval(() => this._attractTick(), ATTRACT.stepMs);
+    if (this.powerOnEnabled) this._powerOn();
+  }
+
+  /** 開機自我檢測：所有七段顯示亮 8、24 顆燈依序點亮再閃兩下（實機開機都會這樣）。 */
+  _powerOn() {
+    const c = this.cab;
+    this._poweringOn = true;
+    this.ui.lock = true;
+    c.led.credit.set(88888); c.led.win.set(88888); c.pocketLed.set(88888);
+    Object.values(c.betDigits).forEach((d) => d.set(88));
+    c.duDigits.set(88);
+    const all = Array.from({ length: LAMPS.length }, (_, i) => i);
+    this._swapLamps(new Set());
+    all.forEach((i) => this._later(() => this._swapLamps(new Set(all.slice(0, i + 1))), 120 + i * 32));
+    [0, 1].forEach((k) => {
+      this._later(() => this._swapLamps(new Set()), 1050 + k * 320);
+      this._later(() => this._swapLamps(new Set(all)), 1210 + k * 320);
+    });
+    this._later(() => {
+      this.ui.lock = false;
+      this._poweringOn = false;
+      c.duDigits.set('');
+      this._lastAct = performance.now();
+      this._lightIdle();
+      this.render();
+    }, 1950);
+  }
+
+  /** 待機燈光秀：沒人投幣一陣子後自己跑燈；任何操作立刻停止。 */
+  _attractTick() {
+    if (this._poweringOn) return;
+    const s = this.machine.state;
+    const can = !document.hidden && s.phase === 'idle' && !this.ui.lock && s.credit === 0 && s.win === 0
+      && totalBet(s.bets) === 0 && performance.now() - this._lastAct > ATTRACT.delay;
+    if (can) {
+      this._attracting = true;
+      this._swapLamps(new Set(attractPattern(this._attractStep++)));
+    } else if (this._attracting) {
+      this._attracting = false;
+      this._lightIdle();
+    }
   }
 
   _checkDaily() {
@@ -107,7 +154,7 @@ export class Game {
     // iOS：避免雙擊縮放與手勢縮放
     ['gesturestart', 'gesturechange', 'gestureend'].forEach((n) => document.addEventListener(n, (e) => e.preventDefault()));
     document.addEventListener('touchend', () => this.audio.unlock(), { passive: true });
-    document.addEventListener('keydown', (e) => this._onKey(e));
+    document.addEventListener('keydown', (e) => { this._lastAct = performance.now(); this._onKey(e); });
     document.addEventListener('keyup', (e) => {
       const el = this._keyBtn; if (el && (e.key === ' ' || e.key === 'Enter' || this._keyMap(e.key))) { this._release(el); this._keyBtn = null; }
     });
@@ -161,6 +208,8 @@ export class Game {
   _act(act, arg) {
     const a = this.audio;
     const m = this.machine;
+    this._lastAct = performance.now();
+    if (this._attracting) { this._attracting = false; this._lightIdle(); }
     if (act !== 'scoop' && act !== 'sound' && !this.ui.lock && m.state.phase !== 'spinning') { clearTimeout(this.ui.flashTimer); this.ui.flash = null; }
     switch (act) {
       case 'coin': return this._coin();
@@ -349,6 +398,7 @@ export class Game {
       const big = r.hits.some((h) => h.mult >= 30) || r.payout >= 100;
       this.audio.win(big);
       r.hits.forEach((h) => this.cab.lamps[h.lamp].classList.add('flash'));
+      if (big) this._bigWinShow(lit);
       this._flashMsg('中獎！', r.hits.length === 1 ? `${names[0]} ×${r.hits[0].mult}　得 ${r.payout}` : `${names.join('、')}　共得 ${r.payout}`, 0);
       this.ui.displayWin = 0;
       this._rollNumber(0, r.payout, (v) => { this.ui.displayWin = v; this.cab.led.win.set(v); }, () => { this.ui.displayWin = null; this.render(); });
@@ -357,6 +407,26 @@ export class Game {
       this._flashMsg('未中獎', sym === 'oncemore' ? '再一次沒有送到你的圖案' : `開出 ${SYMBOL_BY_ID[sym].name}`, 2600);
       this.render();
     }
+  }
+
+  /** 大獎：整圈燈奇偶交替狂閃（實機大獎的全盤閃爍），約 2.5 秒後回到中獎燈。 */
+  _bigWinShow(finalLit) {
+    this.ui.lock = true;
+    let k = 0;
+    const step = () => {
+      if (k >= 18) {
+        this._swapLamps(new Set(finalLit));
+        this.ui.lock = false;
+        this.render();
+        return;
+      }
+      const odd = k % 2;
+      this._swapLamps(new Set(Array.from({ length: LAMPS.length }, (_, i) => i).filter((i) => i % 2 === odd)));
+      this.audio.blip(1 + (k % 6) * 0.12);
+      k += 1;
+      this._later(step, 140);
+    };
+    step();
   }
 
   /* ---------- 猜大小 ---------- */
@@ -583,7 +653,7 @@ export class Game {
       g.innerHTML = `<ellipse rx="13" ry="7.5" fill="url(#gCoin)" stroke="#5f6463" stroke-width="1.2"/><ellipse rx="9" ry="4.6" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".9"/>`;
       const x = 128 + Math.random() * 344;
       const yEnd = 1112 + Math.random() * 20;
-      const delay = i * (60 + Math.random() * 50);
+      const delay = i * (105 + Math.random() * 20); // 出幣馬達節奏規律
       g.setAttribute('transform', `translate(${x} 1070)`);
       g.style.opacity = '0';
       layer.appendChild(g);
@@ -622,6 +692,7 @@ export class Game {
   /** 測試用：停掉所有計時器。 */
   destroy() {
     clearInterval(this._dailyTimer);
+    clearInterval(this._attractTimer);
     this.ui.timers.forEach(clearTimeout);
   }
 }

@@ -80,7 +80,7 @@ export class AudioEngine {
     const t = this.ctx.currentTime;
     this.master.gain.cancelScheduledValues(t);
     this.master.gain.setTargetAtTime(this.enabled ? 0.9 : 0.0001, t, 0.015);
-    if (this.enabled) this._startHum(); else this._stopHum();
+    if (this.enabled) { this._startHum(); this._startRoom(); } else { this._stopHum(); this._stopRoom(); }
   }
 
   /* ---------- 基礎零件 ---------- */
@@ -102,7 +102,7 @@ export class AudioEngine {
     f.type = type; f.frequency.value = freq; f.Q.value = q;
     const g = ctx.createGain();
     this._env(g.gain, t, gain, attack, dur);
-    src.connect(f); f.connect(g); g.connect(this.master);
+    src.connect(f); f.connect(g); g.connect(this._out || this.master);
     src.start(t, rand(0, 0.8)); src.stop(t + attack + dur + 0.05);
     src.onended = () => { try { src.disconnect(); f.disconnect(); g.disconnect(); } catch { /* noop */ } };
   }
@@ -121,7 +121,7 @@ export class AudioEngine {
       const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp;
       g.connect(f); tail = f;
     }
-    tail.connect(this.master);
+    tail.connect(this._out || this.master);
     o.start(t); o.stop(t + attack + dur + 0.05);
     o.onended = () => { try { o.disconnect(); g.disconnect(); if (tail !== g) tail.disconnect(); } catch { /* noop */ } };
   }
@@ -254,7 +254,9 @@ export class AudioEngine {
     this._tone(t0, 95, 0.1 + n * 0.075, { type: 'sawtooth', gain: 0.025, lp: 380, attack: 0.02 });
     let t = t0 + 0.04;
     for (let i = 0; i < n; i++) {
-      t += rand(0.055, 0.12);
+      t += rand(0.1, 0.125); // 出幣馬達的節奏是規律的
+      this._noise(t - 0.012, 0.022, { type: 'bandpass', freq: 950, q: 2, gain: 0.22 });   // 出幣轉盤「咔」
+      this._tone(t - 0.012, 165, 0.035, { type: 'square', gain: 0.05, lp: 520 });
       const inten = rand(0.55, 1);
       const base = rand(1900, 3600);
       this._metal(t, base, inten, rand(0.8, 1.4));                              // 落盤
@@ -279,6 +281,57 @@ export class AudioEngine {
     if (!this.live) return;
     const t = this.now + 0.005;
     for (let k = 0; k < 6; k++) this._metal(t + k * rand(0.025, 0.06), rand(2200, 3800), rand(0.15, 0.4), 0.5);
+  }
+
+  /* ---------- 電動間的遠處聲音：隔壁機台的滴答聲、遠遠的硬幣聲與中獎音（很輕、低通） ---------- */
+  _startRoom() {
+    if (this._injected || this._roomTimer || !this.ready) return;
+    const ctx = this.ctx;
+    const bus = ctx.createGain();
+    bus.gain.value = 0.45;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 1300;
+    bus.connect(lp); lp.connect(this.master);
+    this.room = { bus, lp };
+    const next = () => {
+      this._roomTimer = setTimeout(() => {
+        if (this.live && this.ctx.state === 'running') this._roomEvent();
+        next();
+      }, 2200 + Math.random() * 6000);
+    };
+    next();
+  }
+
+  _stopRoom() {
+    clearTimeout(this._roomTimer);
+    this._roomTimer = null;
+    if (this.room) { try { this.room.bus.disconnect(); this.room.lp.disconnect(); } catch { /* noop */ } this.room = null; }
+  }
+
+  _roomEvent() {
+    if (!this.room) return;
+    const r = Math.random();
+    const t = this.now + 0.02;
+    this._out = this.room.bus;
+    this._g = 1.6;
+    try {
+      if (r < 0.5) {                       // 隔壁機台跑燈：一串滴答
+        const n = 6 + Math.floor(Math.random() * 14);
+        const f = rand(520, 820);
+        for (let i = 0; i < n; i++) {
+          const tt = t + i * (0.07 + i * 0.004);
+          this._tone(tt, f, 0.02 + i * 0.002, { type: 'square', gain: 0.05, lp: 2000 });
+        }
+      } else if (r < 0.8) {                // 遠處硬幣落下
+        this._metal(t, rand(1700, 2600), 0.5, 0.7);
+        this._metal(t + rand(0.05, 0.12), rand(1500, 2300), 0.3, 0.5);
+      } else {                             // 遠處中獎的小曲
+        [523.25, 659.25, 783.99].forEach((f, i) => this._tone(t + i * 0.1, f, 0.14, { type: 'square', gain: 0.05, lp: 2400 }));
+      }
+    } finally {
+      this._out = null;
+      this._g = 1;
+    }
   }
 
   /* ---------- 背景嗡鳴（機殼電源與共振，台灣市電 60Hz） ---------- */
@@ -312,8 +365,8 @@ export class AudioEngine {
   }
 
   /** 離開頁面時暫停，回來再恢復，避免背景耗電。 */
-  suspend() { try { if (this.ctx && !this._injected && this.ctx.state === 'running') this.ctx.suspend(); } catch { /* noop */ } }
-  resume() { try { if (this.ctx && !this._injected && this.ctx.state !== 'running') this.ctx.resume(); } catch { /* noop */ } }
+  suspend() { this._stopRoom(); try { if (this.ctx && !this._injected && this.ctx.state === 'running') this.ctx.suspend(); } catch { /* noop */ } }
+  resume() { if (this.enabled) this._startRoom(); try { if (this.ctx && !this._injected && this.ctx.state !== 'running') this.ctx.resume(); } catch { /* noop */ } }
 }
 
 // 各音效的相對音量（小而短的機械聲需要補償，才不會被嗡鳴與硬幣聲蓋過）

@@ -86,6 +86,9 @@ export const BONUS_MAX_LAMPS = 3;       // VERIFIED（文件）：隨機贈送 1
 export const OM_LAMPS = LAMPS.map((l, i) => (l.symbol === ONCE_MORE ? i : -1)).filter((i) => i >= 0);
 export const PRIZE_LAMPS = LAMPS.map((l, i) => (l.symbol !== ONCE_MORE ? i : -1)).filter((i) => i >= 0);
 
+// 待機燈光秀（INFERRED：實機沒人玩時會自己跑燈招攬；花樣與節奏為模擬）
+export const ATTRACT = { delay: 6000, stepMs: 130 };
+
 // 跑燈節奏（SIMULATED）
 export const SPIN = {
   laps: 2,
