@@ -28,7 +28,7 @@ const rollFor = (lamp) => LAMPS.slice(0, lamp).reduce((a, l) => a + l.weight, 0)
 /** 贈燈抽樣：在 pool 內選中 pick 所需的亂數。 */
 const bonusRoll = (pool, pick) => { let r = 0; for (const i of pool) { if (i === pick) return r; r += LAMPS[i].weight; } throw new Error('pick not in pool'); };
 const bets = (o) => ({ ...emptyBets(), ...o });
-const APPLE = 5, ORANGE_X10 = 0, ORANGE_X2 = 12, BAR_X100 = 3, OM0 = 9;
+const APPLE = 5, ORANGE_X10 = 0, ORANGE_X2 = 11, BAR_X100 = 3, OM0 = 9;
 
 test('盤面：24 燈、再一次在左右兩側正中央、其餘含全部八門與文件載明的倍數', () => {
   assert.equal(LAMPS.length, 24);
@@ -36,10 +36,10 @@ test('盤面：24 燈、再一次在左右兩側正中央、其餘含全部八�
   assert.equal(PRIZE_LAMPS.length, 22);
   for (const c of [0, 6, 12, 18]) assert.notEqual(LAMPS[c].symbol, ONCE_MORE); // 四角是水果
   const per = Object.fromEntries(SYMBOLS.map((s) => [s.id, LAMPS.filter((l) => l.symbol === s.id).map((l) => l.mult).sort((a, b) => a - b)]));
-  assert.deepEqual(per.apple, [5, 5, 5, 5, 5, 5, 5]);
-  assert.deepEqual(per.orange, [2, 10]);
-  assert.deepEqual(per.papaya, [2, 15]);
-  assert.deepEqual(per.bell, [2, 20]);
+  assert.deepEqual(per.apple, [5, 5, 5, 5]);
+  assert.deepEqual(per.orange, [2, 10, 10]);   // 照片：兩個大橘子（左上角、右下角）+ 一個小橘子
+  assert.deepEqual(per.papaya, [2, 15, 15]);
+  assert.deepEqual(per.bell, [2, 20, 20]);
   assert.deepEqual(per.watermelon, [2, 20]);
   assert.deepEqual(per.star, [2, 30]);
   assert.deepEqual(per.seven, [2, 40]);

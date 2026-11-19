@@ -146,6 +146,18 @@ export const SYMBOL_ART = {
       <rect x="6" y="25" width="52" height="15" rx="2.5" fill="#2b2b30" stroke="#0c0c0e" stroke-width="1.5"/><text x="32" y="37" fill="#f1f1ee">BAR</text>
       <rect x="6" y="42" width="52" height="15" rx="2.5" fill="#2b2b30" stroke="#0c0c0e" stroke-width="1.5"/><text x="32" y="54" fill="#f1f1ee">BAR</text>
     </g>`,
+  bar50: `
+    <g font-family="Arial Black,Arial,sans-serif" font-weight="900" text-anchor="middle">
+      <rect x="6" y="6" width="52" height="15" rx="2.5" fill="#2b2b30" stroke="#0c0c0e" stroke-width="1.5"/><text x="32" y="18" font-size="12" fill="#f1f1ee">BAR</text>
+      <text x="32" y="45" font-size="25" fill="#2b2b30" stroke="#f4efe0" stroke-width="2" paint-order="stroke">50</text>
+      <rect x="6" y="43" width="52" height="15" rx="2.5" fill="#2b2b30" stroke="#0c0c0e" stroke-width="1.5"/><text x="32" y="55" font-size="12" fill="#f1f1ee">BAR</text>
+    </g>`,
+  bar100: `
+    <g font-family="Arial Black,Arial,sans-serif" font-weight="900" text-anchor="middle">
+      <rect x="6" y="6" width="52" height="15" rx="2.5" fill="#2b2b30" stroke="#0c0c0e" stroke-width="1.5"/><text x="32" y="18" font-size="12" fill="#f1f1ee">BAR</text>
+      <text x="32" y="44" font-size="22" fill="#2b2b30" stroke="#f4efe0" stroke-width="2" paint-order="stroke">100</text>
+      <rect x="6" y="43" width="52" height="15" rx="2.5" fill="#2b2b30" stroke="#0c0c0e" stroke-width="1.5"/><text x="32" y="55" font-size="12" fill="#f1f1ee">BAR</text>
+    </g>`,
   oncemore: `
     <rect x="3" y="9" width="58" height="46" rx="6" fill="#16331a" stroke="#0a1a0c" stroke-width="2"/>
     <g font-family="Arial Black,Impact,sans-serif" font-weight="900" text-anchor="middle" stroke="#0a3a12" stroke-width="3.2" paint-order="stroke" stroke-linejoin="round">

@@ -116,7 +116,7 @@ async function run() {
   await load();
   press('btn-coin'); await sleep(450);
   press('btn-bet-orange'); await sleep(40); press('btn-bet-orange'); await sleep(40);
-  forceRng(rollFor(12));
+  forceRng(rollFor(11));
   const seq = [];
   let lastKey = '';
   const poll = setInterval(() => {
@@ -135,14 +135,14 @@ async function run() {
   clearInterval(poll);
   await sleep(300);
   const lit = [...G().ui.onLamps];
-  check('7. 跑燈結束後燈停在引擎預定的燈位', finished && pendingTarget === 12 && lit.length === 1 && lit[0] === 12, `target=${pendingTarget} lit=${lit} spin≈${Math.round(spinMs)}ms`);
+  check('7. 跑燈結束後燈停在引擎預定的燈位', finished && pendingTarget === 11 && lit.length === 1 && lit[0] === 11, `target=${pendingTarget} lit=${lit} spin≈${Math.round(spinMs)}ms`);
   const singles = seq.filter((k) => k !== '' && !k.includes(',')).map(Number);
   let stepsOk = singles.length > 48;
   for (let i = 1; i < singles.length; i++) if (((singles[i] - singles[i - 1] + NUM_LAMPS) % NUM_LAMPS) !== 1) { stepsOk = false; break; }
   check('7b. 燈逐格順時針前進，至少繞 2 圈', stepsOk, `steps=${singles.length}`);
   check('7c. 跑燈中的投幣/押注/退幣沒有生效', S().pocket === 90 && total(S().bets) === 0, JSON.stringify({ p: S().pocket, bets: total(S().bets) }));
   check('8. 中獎：橘子 ×2 × 押 2 = 4，只結算一次', S().phase === 'win' && S().win === 4 && S().credit === 8, JSON.stringify({ win: S().win, credit: S().credit }));
-  check('8b. 中獎燈閃爍', D().getElementById('lamp-12').classList.contains('flash'));
+  check('8b. 中獎燈閃爍', D().getElementById('lamp-11').classList.contains('flash'));
   await sleep(1600);
 
   /* 猜大小 */

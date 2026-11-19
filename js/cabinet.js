@@ -85,10 +85,13 @@ function lampCellMarkup(i) {
   const lx = cx + dx * (CELL / 2 - 11), ly = cy + dy * (CELL / 2 - 11);
   const isOm = lamp.symbol === ONCE_MORE;
   const ix = cx - dx * 5, iy = cy - dy * 5 + 1;
-  const icon = isOm
-    ? `<use href="#sym-oncemore" x="${ix - 31}" y="${iy - 31}" width="62" height="62"/>`
-    : `<use href="#sym-${lamp.symbol}" x="${ix - 21}" y="${iy - 21}" width="42" height="42"/>`;
-  const tag = isOm ? '' : `<text x="${x + 8}" y="${row === 6 ? y + CELL - 8 : y + 15}" font-family="${FONT_SANS}" font-weight="900" font-size="11.5" fill="#7a1616">×${lamp.mult}</text>`;
+  // 小倍率（×2）用較小的圖案，大倍率用大圖案；格子上不印倍數（照片如此，倍數印在棋盤下緣）
+  const mults = isOm ? [] : SYMBOL_BY_ID[lamp.symbol].mults;
+  const small = mults.length > 1 && lamp.mult === Math.min(...mults);
+  const size = isOm ? 62 : small ? 30 : lamp.symbol === 'bar' ? 50 : 46;
+  const art = lamp.symbol === 'bar' && lamp.mult === 50 ? 'bar50' : lamp.symbol === 'bar' && lamp.mult === 100 ? 'bar100' : isOm ? 'oncemore' : lamp.symbol;
+  const icon = `<use href="#sym-${art}" x="${ix - size / 2}" y="${iy - size / 2}" width="${size}" height="${size}"/>`;
+  const tag = '';
   return `
   <g class="lamp" id="lamp-${i}" data-lamp="${i}">
     <rect x="${x + 2.5}" y="${y + 2.5}" width="${CELL - 5}" height="${CELL - 5}" rx="4" fill="url(#gCell)" stroke="#6e5026" stroke-width="1.6"/>
@@ -239,7 +242,7 @@ export function buildCabinet(root) {
       <g font-family="${FONT_SANS}" font-weight="800" text-anchor="middle" fill="#fff6d0" stroke="#0e3a78" stroke-width="2.6" paint-order="stroke" font-size="12">
         <text x="300" y="584">ONCE MORE 再送 1～3 個燈</text>
         <text x="300" y="602">猜小 1–6　猜大 8–13　猜對加倍</text>
-        <text x="300" y="620">BAR ×25 / 50 / 100　最大獎</text>
+        <text x="300" y="620">小圖 ×2　大圖 ×最高倍　BAR 100 最大獎</text>
       </g>
     </g>
 
